@@ -96,19 +96,9 @@
         // --- PERSISTENCE ---
         const loadData = () => {
             const saved = localStorage.getItem('fluentiaData');
-            if (saved) {
-                const parsed = JSON.parse(saved);
-                appState.isPremium = parsed.isPremium;
-                appState.user = parsed.user;
-            }
+            if (saved) { const parsed = JSON.parse(saved); appState.isPremium = parsed.isPremium; appState.user = parsed.user; }
         };
-
-        const saveData = () => {
-            localStorage.setItem('fluentiaData', JSON.stringify({
-                isPremium: appState.isPremium,
-                user: appState.user
-            }));
-        };
+        const saveData = () => { localStorage.setItem('fluentiaData', JSON.stringify({ isPremium: appState.isPremium, user: appState.user })); };
 
         // --- Utility Functions ---
         const navigate = (page) => { 
@@ -126,11 +116,8 @@
         const getSelectedLevel = (name) => appState.selections[name] || 'Beginner';
         
         const upgradeToPremium = () => { 
-            appState.isPremium = true; 
-            saveData(); 
-            render(); 
-            const modal = document.getElementById('premiumModal');
-            if(modal) modal.remove();
+            appState.isPremium = true; saveData(); render(); 
+            const modal = document.getElementById('premiumModal'); if(modal) modal.remove();
             alert("Premium Unlocked! Your status has been saved."); 
         };
         
@@ -149,37 +136,24 @@
                         <h3 class="text-2xl font-bold text-primary mb-3">🔒 Premium Required</h3>
                         <p class="text-gray-700 mb-4">The <b>${course.level}</b> level is for Premium members only.</p>
                         <div class="flex flex-col gap-2">
-                            <button onclick="navigate('plans'); document.getElementById('premiumModal').remove();" class="bg-accent text-on-light font-bold py-3 px-6 rounded-lg hover:opacity-90 transition shadow-md">
-                                View Plans
-                            </button>
-                            <button onclick="document.getElementById('premiumModal').remove()" class="text-gray-500 hover:text-gray-800 text-sm mt-2">
-                                No thanks
-                            </button>
+                            <button onclick="navigate('plans'); document.getElementById('premiumModal').remove();" class="bg-accent text-on-light font-bold py-3 px-6 rounded-lg hover:opacity-90 transition shadow-md">View Plans</button>
+                            <button onclick="document.getElementById('premiumModal').remove()" class="text-gray-500 hover:text-gray-800 text-sm mt-2">No thanks</button>
                         </div>
-                    </div>
-                `;
+                    </div>`;
                 app.appendChild(modal);
                 return; 
             }
             appState.currentLesson.title = `${course.name} (${course.level}) - Lesson 1`; 
-            appState.currentLesson.status = 'ready'; // Reset status for new lesson
+            appState.currentLesson.status = 'ready'; 
             navigate('lesson');
         };
         
         const completePronunciation = () => {
-            appState.currentLesson.status = 'completed';
-            appState.user.totalWords += 5; 
-            saveData();
-            // Re-render the lesson page to show the "Quiz" block
-            render();
-            // Show message
-            setTimeout(() => {
-                const msgBox = document.getElementById('messageBox');
-                if(msgBox) msgBox.innerHTML = `<div class="p-4 bg-accent text-on-light rounded-lg shadow-xl text-center animate-pop"><p class="font-bold">Great Job!</p><p>+5 Words Saved!</p></div>`;
-            }, 100);
+            appState.currentLesson.status = 'completed'; appState.user.totalWords += 5; saveData(); render();
+            setTimeout(() => { const msg = document.getElementById('messageBox'); if(msg) msg.innerHTML = `<div class="p-4 bg-accent text-on-light rounded-lg shadow-xl text-center animate-pop"><p class="font-bold">Great Job!</p><p>+5 Words Saved!</p></div>`; }, 100);
         };
 
-        // --- GAME INITIALIZATION LOGIC ---
+        // --- Game Engine ---
         const launchGame = (name, type) => {
             const vocab = gameData[name] ? [...gameData[name]] : [...gameData['Korean']];
             appState.activeGame = { type, language: name, score: 0, timer: 30, data: vocab, state: {} };
@@ -201,8 +175,7 @@
 
         window.restartSpaceInvaders = () => {
             const overlay = document.getElementById('gameOverOverlay');
-            if(overlay) overlay.classList.add('hidden');
-            overlay.classList.remove('flex');
+            if(overlay) overlay.classList.add('hidden'); overlay.classList.remove('flex');
             startGameInvaders(appState.activeGame.state.difficulty);
         };
 
@@ -267,7 +240,10 @@
                         state.enemies.push({ x: Math.random() * (canvas.width - 40) + 20, y: -30, type: type, text: text, w: 30, h: 30 });
                     } else {
                         const randomWord = game.data[Math.floor(Math.random() * game.data.length)];
-                        state.enemies.push({ x: Math.random() * (canvas.width - 80) + 40, y: -30, type: 'word', text: randomWord.a, isTarget: randomWord.a === state.currentPair?.a, w: ctx.measureText(randomWord.a).width + 20, h: 20 });
+                        // Pre-calculate text width here for accurate hitbox later
+                        ctx.font = '10px "Press Start 2P", monospace';
+                        const width = ctx.measureText(randomWord.a).width + 10; 
+                        state.enemies.push({ x: Math.random() * (canvas.width - 80) + 40, y: -30, type: 'word', text: randomWord.a, isTarget: randomWord.a === state.currentPair?.a, w: width, h: 20 });
                     }
                 }
 
@@ -282,17 +258,21 @@
                 if (state.currentPair) { ctx.fillStyle = '#fff'; ctx.font = '12px "Press Start 2P", monospace'; ctx.textAlign = 'center'; ctx.fillText(`TARGET: ${state.currentPair.q.toUpperCase()}`, canvas.width/2, 30); }
 
                 ctx.fillStyle = '#39ff14';
+                // Bullets Loop
                 for (let i = state.bullets.length - 1; i >= 0; i--) {
                     let b = state.bullets[i]; b.y -= 8; ctx.fillRect((b.x / 100) * canvas.width - 2, b.y, 4, 10);
                     for (let j = state.enemies.length - 1; j >= 0; j--) {
                         let e = state.enemies[j];
-                        if (b.y < e.y + 20 && b.y > e.y && (b.x / 100) * canvas.width > e.x - 20 && (b.x / 100) * canvas.width < e.x + 20) {
+                        let bx = (b.x / 100) * canvas.width;
+                        // FIXED COLLISION: Use dynamic width 'e.w' and standard centering
+                        if (b.y < e.y + 20 && b.y > e.y - 10 && bx > e.x - e.w/2 && bx < e.x + e.w/2) {
                             state.bullets.splice(i, 1);
                             if (e.type === 'word') {
                                 if (e.isTarget) {
                                     game.score += 50; state.enemies.splice(j, 1);
                                     const remaining = state.shuffledVocab; state.currentPair = remaining[Math.floor(Math.random() * remaining.length)];
                                 } else {
+                                    // Rule 1: Wrong shot takes a life
                                     game.score = Math.max(0, game.score - 10); state.enemies.splice(j, 1); 
                                     if (!state.buffs.includes('shield')) { state.lives -= 1; }
                                 }
@@ -308,13 +288,17 @@
                     if (b.y < 0) state.bullets.splice(i, 1);
                 }
 
+                // Enemies Loop
+                ctx.textAlign = 'center'; // Ensure text is centered at e.x
                 ctx.font = '10px "Press Start 2P", monospace';
                 for (let i = state.enemies.length - 1; i >= 0; i--) {
                     let e = state.enemies[i]; e.y += enemySpeed;
                     if (e.type === 'word') { ctx.fillStyle = '#fff'; ctx.fillText(e.text, e.x, e.y); } 
                     else { ctx.font = '20px Arial'; ctx.fillText(e.text, e.x, e.y); ctx.font = '10px "Press Start 2P", monospace'; }
 
-                    if (Math.abs(e.y - shipY) < 20 && Math.abs(e.x - shipPx) < 20) {
+                    // Rule 2: Ship collision (Any word) takes a life
+                    // Widen collision box slightly for ship body
+                    if (Math.abs(e.y - shipY) < 25 && Math.abs(e.x - shipPx) < 25) {
                         state.enemies.splice(i, 1);
                         if (e.type === 'word' || e.type === 'trap') {
                              if (!state.buffs.includes('shield')) { state.lives -= 1; }
@@ -322,7 +306,9 @@
                              if(e.type==='shield') { state.buffs.push('shield'); setTimeout(()=>state.buffs=state.buffs.filter(b=>b!=='shield'),5000); }
                              if(e.type==='freeze') { state.buffs.push('freeze'); setTimeout(()=>state.buffs=state.buffs.filter(b=>b!=='freeze'),3000); }
                         }
-                    } else if (e.y > canvas.height + 20) {
+                    } 
+                    // Rule 3: Bottom collision does NOT take a life
+                    else if (e.y > canvas.height + 20) {
                         state.enemies.splice(i, 1);
                     }
                 }
@@ -394,100 +380,33 @@
                 <p class="text-xl text-gray-200 mb-8">Video-based lessons, real-time pronunciation practice, and our new <b>Gamery Mode</b>.</p>
                 <button onclick="navigate('courses')" class="bg-accent text-on-light text-lg font-bold py-3 px-8 rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition duration-300">Start Learning Now</button>
                 <div class="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8">
-                    <!-- Card 1: Video Lessons -->
+                    <!-- Animated Card 1 -->
                     <div class="group bg-accent p-0 rounded-xl shadow-lg border-t-4 border-on-maroon text-on-light overflow-hidden h-48 relative transition hover:scale-105">
-                        <!-- Static View -->
                         <div class="group-hover:hidden absolute inset-0 flex flex-col items-center justify-center p-6">
-                            <div class="text-3xl text-on-maroon mb-3">📹</div>
-                            <h3 class="font-bold text-lg mb-2">Video Lessons</h3>
-                            <p class="text-gray-700 text-sm">Interactive content.</p>
+                            <div class="text-3xl text-on-maroon mb-3">📹</div><h3 class="font-bold text-lg mb-2">Video Lessons</h3><p class="text-gray-700 text-sm">Interactive content.</p>
                         </div>
-                        <!-- Hover View (Animated Scene) -->
                         <div class="hidden group-hover:flex absolute inset-0 bg-gray-800 items-center justify-center flex-col">
-                            <svg width="150" height="100" viewBox="0 0 150 100">
-                                <!-- Board -->
-                                <rect x="40" y="10" width="100" height="60" fill="#2d3748" stroke="#4a5568" stroke-width="2"/>
-                                <!-- Text on board -->
-                                <line x1="50" y1="25" x2="130" y2="25" stroke="white" stroke-width="2" stroke-dasharray="5,5">
-                                    <animate attributeName="x2" from="50" to="130" dur="1s" repeatCount="indefinite" />
-                                </line>
-                                <!-- Teacher -->
-                                <circle cx="20" cy="30" r="10" fill="#ecc94b">
-                                    <animate attributeName="cx" values="20;25;20" dur="2s" repeatCount="indefinite" />
-                                </circle>
-                                <rect x="10" y="40" width="20" height="40" fill="white">
-                                    <animate attributeName="x" values="10;15;10" dur="2s" repeatCount="indefinite" />
-                                </rect>
-                                <!-- Stick -->
-                                <line x1="20" y1="50" x2="50" y2="30" stroke="white" stroke-width="2">
-                                    <animate attributeName="x2" values="50;100;50" dur="2s" repeatCount="indefinite" />
-                                    <animate attributeName="y2" values="30;20;30" dur="2s" repeatCount="indefinite" />
-                                    <animate attributeName="x1" values="20;25;20" dur="2s" repeatCount="indefinite" />
-                                </line>
-                            </svg>
+                            <svg width="150" height="100" viewBox="0 0 150 100"><rect x="40" y="10" width="100" height="60" fill="#2d3748" stroke="#4a5568" stroke-width="2"/><line x1="50" y1="25" x2="130" y2="25" stroke="white" stroke-width="2" stroke-dasharray="5,5"><animate attributeName="x2" from="50" to="130" dur="1s" repeatCount="indefinite" /></line><circle cx="20" cy="30" r="10" fill="#ecc94b"><animate attributeName="cx" values="20;25;20" dur="2s" repeatCount="indefinite" /></circle><rect x="10" y="40" width="20" height="40" fill="white"><animate attributeName="x" values="10;15;10" dur="2s" repeatCount="indefinite" /></rect><line x1="20" y1="50" x2="50" y2="30" stroke="white" stroke-width="2"><animate attributeName="x2" values="50;100;50" dur="2s" repeatCount="indefinite" /><animate attributeName="y2" values="30;20;30" dur="2s" repeatCount="indefinite" /><animate attributeName="x1" values="20;25;20" dur="2s" repeatCount="indefinite" /></line></svg>
                             <p class="text-white text-xs mt-2 font-mono">Playing Lesson...</p>
                         </div>
                     </div>
-
-                    <!-- Card 2: Speech Practice -->
+                    <!-- Animated Card 2 -->
                     <div class="group bg-light-bg p-0 rounded-xl shadow-lg border-t-4 border-primary text-on-light overflow-hidden h-48 relative transition hover:scale-105">
-                        <!-- Static -->
                         <div class="group-hover:hidden absolute inset-0 flex flex-col items-center justify-center p-6">
-                            <div class="text-3xl text-primary mb-3">🎤</div>
-                            <h3 class="font-bold text-lg mb-2">Speech Practice</h3>
-                            <p class="text-gray-700 text-sm">Pronunciation check.</p>
+                            <div class="text-3xl text-primary mb-3">🎤</div><h3 class="font-bold text-lg mb-2">Speech Practice</h3><p class="text-gray-700 text-sm">Pronunciation check.</p>
                         </div>
-                        <!-- Hover (Animated Scene) -->
                         <div class="hidden group-hover:flex absolute inset-0 bg-gray-900 items-center justify-center flex-col">
-                            <svg width="100" height="100" viewBox="0 0 100 100">
-                                <!-- Face Profile -->
-                                <path d="M30 20 Q10 20 10 50 Q10 80 30 80 L30 90 L50 90 L50 80 Q70 80 70 50 Q70 20 50 20 Z" fill="#63b3ed" />
-                                <circle cx="45" cy="40" r="3" fill="white" /> <!-- Eye -->
-                                <path d="M50 60 Q60 60 60 50" stroke="white" fill="none" stroke-width="2"/> <!-- Mouth -->
-                                
-                                <!-- Sound Waves -->
-                                <path d="M75 40 Q85 50 75 60" stroke="#39ff14" stroke-width="3" fill="none" opacity="0">
-                                    <animate attributeName="opacity" values="0;1;0" dur="1s" repeatCount="indefinite" />
-                                    <animate attributeName="d" values="M75 40 Q85 50 75 60; M80 35 Q95 50 80 65" dur="1s" repeatCount="indefinite" />
-                                </path>
-                                <path d="M85 30 Q100 50 85 70" stroke="#39ff14" stroke-width="3" fill="none" opacity="0">
-                                    <animate attributeName="opacity" values="0;1;0" dur="1s" begin="0.3s" repeatCount="indefinite" />
-                                </path>
-                            </svg>
+                            <svg width="100" height="100" viewBox="0 0 100 100"><path d="M30 20 Q10 20 10 50 Q10 80 30 80 L30 90 L50 90 L50 80 Q70 80 70 50 Q70 20 50 20 Z" fill="#63b3ed" /><circle cx="45" cy="40" r="3" fill="white" /><path d="M50 60 Q60 60 60 50" stroke="white" fill="none" stroke-width="2"/><path d="M75 40 Q85 50 75 60" stroke="#39ff14" stroke-width="3" fill="none" opacity="0"><animate attributeName="opacity" values="0;1;0" dur="1s" repeatCount="indefinite" /><animate attributeName="d" values="M75 40 Q85 50 75 60; M80 35 Q95 50 80 65" dur="1s" repeatCount="indefinite" /></path></svg>
                             <p class="text-[#39ff14] text-xs mt-2 font-mono">Recording...</p>
                         </div>
                     </div>
-
-                    <!-- Card 3: Game Mode -->
+                    <!-- Animated Card 3 -->
                     <div class="group bg-gray-700 p-0 rounded-xl shadow-lg border-t-4 border-accent text-on-maroon overflow-hidden h-48 relative transition hover:scale-105">
-                        <!-- Static -->
                         <div class="group-hover:hidden absolute inset-0 flex flex-col items-center justify-center p-6">
-                            <div class="text-3xl text-accent mb-3">👾</div>
-                            <h3 class="font-bold text-lg mb-2">Game Mode</h3>
-                            <p class="text-gray-300 text-sm">Learn with Arcade Games.</p>
+                            <div class="text-3xl text-accent mb-3">👾</div><h3 class="font-bold text-lg mb-2">Game Mode</h3><p class="text-gray-300 text-sm">Learn with Arcade Games.</p>
                         </div>
-                        <!-- Hover (Animated Scene) -->
                         <div class="hidden group-hover:flex absolute inset-0 bg-black items-center justify-center flex-col">
-                             <svg width="150" height="80" viewBox="0 0 150 80">
-                                <!-- Ship -->
-                                <rect x="70" y="70" width="10" height="5" fill="#39ff14">
-                                    <animate attributeName="x" values="20;120;20" dur="3s" repeatCount="indefinite" />
-                                </rect>
-                                <rect x="73" y="65" width="4" height="5" fill="#39ff14">
-                                    <animate attributeName="x" values="23;123;23" dur="3s" repeatCount="indefinite" />
-                                </rect>
-                                <!-- Bullet -->
-                                <rect x="74" y="60" width="2" height="5" fill="red">
-                                     <animate attributeName="y" values="60;0" dur="0.5s" repeatCount="indefinite" />
-                                     <animate attributeName="x" values="24;124;24" dur="3s" repeatCount="indefinite" />
-                                </rect>
-                                <!-- Invader -->
-                                <g transform="translate(0,0)">
-                                    <rect x="0" y="0" width="10" height="8" fill="white" />
-                                    <animateTransform attributeName="transform" type="translate" values="20 10; 120 10; 20 10" dur="3s" repeatCount="indefinite" />
-                                    <animate attributeName="opacity" values="1;0;1" dur="0.5s" repeatCount="indefinite" />
-                                </g>
-                             </svg>
+                             <svg width="150" height="80" viewBox="0 0 150 80"><rect x="70" y="70" width="10" height="5" fill="#39ff14"><animate attributeName="x" values="20;120;20" dur="3s" repeatCount="indefinite" /></rect><rect x="73" y="65" width="4" height="5" fill="#39ff14"><animate attributeName="x" values="23;123;23" dur="3s" repeatCount="indefinite" /></rect><rect x="74" y="60" width="2" height="5" fill="red"><animate attributeName="y" values="60;0" dur="0.5s" repeatCount="indefinite" /><animate attributeName="x" values="24;124;24" dur="3s" repeatCount="indefinite" /></rect><g transform="translate(0,0)"><rect x="0" y="0" width="10" height="8" fill="white" /><animateTransform attributeName="transform" type="translate" values="20 10; 120 10; 20 10" dur="3s" repeatCount="indefinite" /><animate attributeName="opacity" values="1;0;1" dur="0.5s" repeatCount="indefinite" /></g></svg>
                              <p class="text-accent text-xs mt-2 font-press-start">INSERT COIN</p>
                         </div>
                     </div>
@@ -608,6 +527,87 @@
             </div>
         `;
 
+        // --- RESTORED LESSON PAGE FUNCTION ---
+        const renderLessonPage = () => {
+            const lessonStatus = appState.currentLesson.status;
+            const interactiveBlock = lessonStatus === 'ready' ? `
+                <div class="p-6 bg-light-bg rounded-xl shadow-lg mt-6">
+                    <h4 class="text-xl font-bold text-primary mb-4">🎤 Pronunciation Practice</h4>
+                    <p class="text-gray-700 mb-4">Say the phrase: "Annyeonghaseyo" (Hello)</p>
+                    <div class="flex items-center space-x-4">
+                        <input type="text" value="Annyeonghaseyo" class="flex-grow p-3 border-2 border-primary rounded-lg focus:outline-none focus:ring-2 focus:ring-accent" readonly>
+                        <button onclick="completePronunciation()" class="bg-primary text-on-maroon p-3 rounded-full hover:bg-primary/90 transition duration-150 flex-shrink-0">
+                            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z"></path><path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"></path></svg>
+                        </button>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-2">Click the eye/mic button to simulate speech recognition validation.</p>
+                </div>
+            ` : `
+                <div class="p-6 bg-accent text-black rounded-xl shadow-lg mt-6 text-center animate-pop">
+                    <h4 class="text-2xl font-bold mb-2">Lesson Complete!</h4>
+                    <p>You have successfully finished the practice module. Time for the quiz!</p>
+                    <button class="mt-4 bg-primary text-on-maroon font-bold py-2 px-6 rounded-full hover:bg-opacity-90 transition">
+                        Start 10-Item Quiz
+                    </button>
+                </div>
+            `;
+
+            return `
+                <div class="max-w-6xl mx-auto p-4 md:p-8 flex flex-col lg:flex-row gap-8">
+                    <div class="flex-grow lg:w-3/4">
+                        <div class="aspect-video bg-gray-900 rounded-xl shadow-2xl flex items-center justify-center text-on-maroon text-xl font-bold relative border-4 border-primary">
+                            <span class="absolute top-4 left-4 text-sm bg-primary/70 px-3 py-1 rounded-full">Video Lesson</span>
+                            <p>Video Lesson Playback...</p>
+                        </div>
+                        <h2 class="text-3xl font-extrabold text-primary mt-6">${appState.currentLesson.title}</h2>
+                        <div class="mt-4">
+                            <p class="text-sm text-gray-500 mb-1">Lesson Progress (70% complete)</p>
+                            <div class="w-full h-2 bg-gray-200 rounded-full">
+                                <div class="h-2 bg-primary rounded-full" style="width: 70%;"></div>
+                            </div>
+                        </div>
+                        ${interactiveBlock}
+                    </div>
+                    <div class="lg:w-1/4">
+                        <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-accent">
+                            <h3 class="text-lg font-bold text-primary mb-4">Lesson Tools</h3>
+                            <ul class="space-y-3">
+                                <li class="p-3 bg-light-bg rounded-lg font-medium hover:bg-yellow-100 transition cursor-pointer">Flashcards (5 new words)</li>
+                                <li class="p-3 bg-gray-100 rounded-lg text-gray-700 hover:bg-gray-200 transition cursor-pointer">Word-by-word Translation</li>
+                                <li class="p-3 bg-gray-100 rounded-lg text-gray-700 hover:bg-gray-200 transition cursor-pointer">Lesson Notes PDF</li>
+                            </ul>
+                        </div>
+                        <button onclick="navigate('courses')" class="mt-6 w-full py-2 border-2 border-gray-300 rounded-lg text-gray-600 hover:border-primary hover:text-primary transition">Back to Courses</button>
+                        <div id="messageBox" class="mt-6"></div>
+                    </div>
+                </div>
+            `;
+        };
+
+        // --- RESTORED DASHBOARD PAGE ---
+        const renderDashboardPage = () => {
+            return `
+                <div class="max-w-4xl mx-auto p-8 pt-12 animate-pop">
+                    <h2 class="text-3xl font-bold text-primary mb-8 text-center">Your Progress</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
+                        <div class="bg-white p-6 rounded-xl shadow-lg border-b-4 border-accent">
+                            <h3 class="text-4xl font-bold text-primary">${appState.user.streak} 🔥</h3>
+                            <p class="text-gray-600">Day Streak</p>
+                        </div>
+                        <div class="bg-white p-6 rounded-xl shadow-lg border-b-4 border-accent">
+                            <h3 class="text-4xl font-bold text-primary">${appState.user.totalWords} 📖</h3>
+                            <p class="text-gray-600">Words Learned</p>
+                        </div>
+                        <div class="bg-white p-6 rounded-xl shadow-lg border-b-4 border-accent">
+                            <h3 class="text-4xl font-bold text-primary">Beginner 🏅</h3>
+                            <p class="text-gray-600">Current Rank</p>
+                        </div>
+                    </div>
+                    <button onclick="navigate('home')" class="mt-12 w-full py-3 bg-primary text-white rounded-lg hover:bg-opacity-90 transition">Back to Home</button>
+                </div>
+            `;
+        };
+
         const renderGamePage = () => {
             const game = appState.activeGame;
             const state = game.state;
@@ -679,6 +679,7 @@
                 case 'courses': contentHTML = renderCoursesPage(); break;
                 case 'plans': contentHTML = renderPremiumPlansPage(); break;
                 case 'lesson': contentHTML = renderLessonPage(); break;
+                case 'dashboard': contentHTML = renderDashboardPage(); break;
                 default: contentHTML = renderHomePage();
             }
             app.innerHTML += `<main class="flex-grow p-4 md:p-8 scroll-y-auto bg-gray-50">${contentHTML}</main>`;
