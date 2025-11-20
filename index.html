@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fluentia - Level Up Your Language</title>
+    <!-- Load Tailwind CSS --><script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Inter Font --><link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
+    <!-- Load Arcade Font --><link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        /* New Maroon & Yellow Color Scheme */
+        :root {
+            --primary-maroon: #800000; /* Deep Maroon */
+            --light-yellow-bg: #FFF8E1; /* Light Yellow/Cream */
+            --accent-gold: #FFC300;     /* Bright Gold/Yellow */
+            --text-on-maroon: #FFFFFF;  /* White for text on maroon */
+            --text-on-light: #333333;   /* Dark text for light backgrounds */
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f9fb;
+            overscroll-behavior: none;
+            touch-action: none;
+            user-select: none;
+        }
+        /* Custom Classes based on new variables */
+        .bg-primary { background-color: var(--primary-maroon); }
+        .text-primary { color: var(--primary-maroon); }
+        .bg-light-bg { background-color: var(--light-yellow-bg); }
+        .text-on-maroon { color: var(--text-on-maroon); } 
+        .text-on-light { color: var(--text-on-light); }   
+        .bg-accent { background-color: var(--accent-gold); }
+        .font-press-start { font-family: 'Press Start 2P', cursive; }
+        
+        /* Animations */
+        @keyframes pop { 0% { transform: scale(0.9); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+        .animate-pop { animation: pop 0.2s ease-out; }
+        
+        /* Custom scrollbar */
+        .scroll-y-auto::-webkit-scrollbar { width: 6px; }
+        .scroll-y-auto::-webkit-scrollbar-thumb { background-color: var(--primary-maroon); border-radius: 10px; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- Main Application Container --><div id="app" class="flex flex-col flex-grow"></div>
+
+    <script>
+        // --- Application State ---
+        const appState = {
+            currentPage: 'home',
+            isPremium: false, 
+            activeDropdown: null, 
+            selections: {}, 
+            gameryModes: {}, 
+            activeGame: { type: null, language: null, score: 0, timer: 30, data: null, state: {} },
+            user: {
+                name: "Learner",
+                streak: 0,
+                totalWords: 0,
+                progress: { Korean: 65, Spanish: 20 },
+                badges: ['Beginner'],
+            },
+            currentLesson: { title: "Korean - Lesson 1", status: 'ready' },
+            courses: [
+                { id: 'kr-beg', name: 'Korean', tagline: 'Hallyu Culture: Basic Essentials', level: 'Beginner', difficulty: 'Beginner', color: 'bg-accent text-on-light' },
+                { id: 'kr-int', name: 'Korean', tagline: 'Everyday Conversation Fluency', level: 'Intermediate', difficulty: 'Intermediate', color: 'bg-accent text-on-light' },
+                { id: 'kr-adv', name: 'Korean', tagline: 'In-Depth Cultural & Formal Use', level: 'Advanced', difficulty: 'Advanced', color: 'bg-primary text-on-maroon' },
+                { id: 'kr-exp', name: 'Korean', tagline: 'Mastery in Literature & Media', level: 'Expert', difficulty: 'Expert', color: 'bg-primary text-on-maroon' },
+                
+                { id: 'es-beg', name: 'Spanish', tagline: 'Basic Travel Phrases & Grammar', level: 'Beginner', difficulty: 'Beginner', color: 'bg-light-bg text-on-light' },
+                { id: 'es-int', name: 'Spanish', tagline: 'Travel & Business Ready', level: 'Intermediate', difficulty: 'Intermediate', color: 'bg-light-bg text-on-light' },
+                { id: 'es-adv', name: 'Spanish', tagline: 'Advanced Dialect & Syntax', level: 'Advanced', difficulty: 'Advanced', color: 'bg-primary text-on-maroon' },
+                { id: 'es-exp', name: 'Spanish', tagline: 'Literary Critique & Fluent Debate', level: 'Expert', difficulty: 'Expert', color: 'bg-primary text-on-maroon' },
+
+                { id: 'jp-beg', name: 'Japanese', tagline: 'Hiragana & Katakana Basics', level: 'Beginner', difficulty: 'Beginner', color: 'bg-gray-700 text-on-maroon' },
+                { id: 'jp-int', name: 'Japanese', tagline: 'Kanji & Daily Life', level: 'Intermediate', difficulty: 'Intermediate', color: 'bg-gray-700 text-on-maroon' },
+                { id: 'jp-adv', name: 'Japanese', tagline: 'Business Japanese (Keigo)', level: 'Advanced', difficulty: 'Advanced', color: 'bg-gray-700 text-on-maroon' },
+                { id: 'jp-exp', name: 'Japanese', tagline: 'Native Level Immersion', level: 'Expert', difficulty: 'Expert', color: 'bg-gray-700 text-on-maroon' },
+
+                { id: 'it-beg', name: 'Italian', tagline: 'Ciao! Basics & Travel', level: 'Beginner', difficulty: 'Beginner', color: 'bg-green-600 text-on-maroon' },
+                { id: 'it-int', name: 'Italian', tagline: 'Conversation & Dining', level: 'Intermediate', difficulty: 'Intermediate', color: 'bg-green-600 text-on-maroon' },
+                { id: 'it-adv', name: 'Italian', tagline: 'Business & Art History', level: 'Advanced', difficulty: 'Advanced', color: 'bg-green-600 text-on-maroon' },
+                { id: 'it-exp', name: 'Italian', tagline: 'Dante & Renaissance Lit', level: 'Expert', difficulty: 'Expert', color: 'bg-green-600 text-on-maroon' },
+            ]
+        };
+
+        // --- Mock Data ---
+        const gameData = {
+            'Korean': [ { q: 'Hello', a: 'Annyeong' }, { q: 'Thank you', a: 'Gomawo' }, { q: 'Apple', a: 'Sagwa' }, { q: 'Cat', a: 'Goyangi' }, { q: 'Love', a: 'Sarang' } ],
+            'Spanish': [ { q: 'Hello', a: 'Hola' }, { q: 'Thank you', a: 'Gracias' }, { q: 'Apple', a: 'Manzana' }, { q: 'Cat', a: 'Gato' }, { q: 'Love', a: 'Amor' } ],
+            'Japanese': [ { q: 'Hello', a: 'Konnichiwa' }, { q: 'Thank you', a: 'Arigato' }, { q: 'Apple', a: 'Ringo' }, { q: 'Cat', a: 'Neko' }, { q: 'Love', a: 'Ai' } ],
+            'Italian': [ { q: 'Hello', a: 'Ciao' }, { q: 'Thank you', a: 'Grazie' }, { q: 'Apple', a: 'Mela' }, { q: 'Cat', a: 'Gatto' }, { q: 'Love', a: 'Amore' } ]
+        };
+
+        // --- PERSISTENCE ---
+        const loadData = () => {
+            const saved = localStorage.getItem('fluentiaData');
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                appState.isPremium = parsed.isPremium;
+                appState.user = parsed.user;
+            }
+        };
+
+        const saveData = () => {
+            localStorage.setItem('fluentiaData', JSON.stringify({
+                isPremium: appState.isPremium,
+                user: appState.user
+            }));
+        };
+
+        // --- Utility Functions ---
+        const navigate = (page) => { 
+            if (appState.activeGame.state && appState.activeGame.state.animationId) {
+                cancelAnimationFrame(appState.activeGame.state.animationId);
+                appState.activeGame.state.animationId = null;
+            }
+            appState.currentPage = page; 
+            render(); 
+            window.scrollTo(0, 0); 
+        };
+        const toggleDropdown = (name) => { appState.activeDropdown = (appState.activeDropdown === name) ? null : name; render(); };
+        const toggleGameryMode = (name) => { appState.gameryModes[name] = !appState.gameryModes[name]; render(); };
+        const selectLevel = (name, level) => { appState.selections[name] = level; appState.activeDropdown = null; render(); };
+        const getSelectedLevel = (name) => appState.selections[name] || 'Beginner';
+        
+        const upgradeToPremium = () => { 
+            appState.isPremium = true; 
+            saveData(); 
+            render(); 
+            const modal = document.getElementById('premiumModal');
+            if(modal) modal.remove();
+            alert("Premium Unlocked! Your status has been saved."); 
+        };
+        
+        const startSelectedLesson = (name) => {
+            const level = getSelectedLevel(name);
+            const course = appState.courses.find(c => c.name === name && c.level === level);
+            if (!course) return;
+            
+            if (['Advanced', 'Expert'].includes(course.difficulty) && !appState.isPremium) { 
+                const app = document.getElementById('app');
+                const modal = document.createElement('div');
+                modal.id = 'premiumModal';
+                modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+                modal.innerHTML = `
+                    <div class="bg-white p-8 rounded-xl shadow-2xl text-center max-w-sm border-4 border-primary">
+                        <h3 class="text-2xl font-bold text-primary mb-3">🔒 Premium Required</h3>
+                        <p class="text-gray-700 mb-4">The <b>${course.level}</b> level is for Premium members only.</p>
+                        <div class="flex flex-col gap-2">
+                            <button onclick="navigate('plans'); document.getElementById('premiumModal').remove();" class="bg-accent text-on-light font-bold py-3 px-6 rounded-lg hover:opacity-90 transition shadow-md">
+                                View Plans
+                            </button>
+                            <button onclick="document.getElementById('premiumModal').remove()" class="text-gray-500 hover:text-gray-800 text-sm mt-2">
+                                No thanks
+                            </button>
+                        </div>
+                    </div>
+                `;
+                app.appendChild(modal);
+                return; 
+            }
+            appState.currentLesson.title = `${course.name} (${course.level}) - Lesson 1`; 
+            appState.currentLesson.status = 'ready'; // Reset status for new lesson
+            navigate('lesson');
+        };
+        
+        const completePronunciation = () => {
+            appState.currentLesson.status = 'completed';
+            appState.user.totalWords += 5; 
+            saveData();
+            // Re-render the lesson page to show the "Quiz" block
+            render();
+            // Show message
+            setTimeout(() => {
+                const msgBox = document.getElementById('messageBox');
+                if(msgBox) msgBox.innerHTML = `<div class="p-4 bg-accent text-on-light rounded-lg shadow-xl text-center animate-pop"><p class="font-bold">Great Job!</p><p>+5 Words Saved!</p></div>`;
+            }, 100);
+        };
+
+        // --- GAME INITIALIZATION LOGIC ---
+        const launchGame = (name, type) => {
+            const vocab = gameData[name] ? [...gameData[name]] : [...gameData['Korean']];
+            appState.activeGame = { type, language: name, score: 0, timer: 30, data: vocab, state: {} };
+
+            if (type === 'Word Invaders') {
+                appState.activeGame.state = {
+                    gameStarted: false, gameOver: false, isRunning: false, difficulty: 'Normal', lives: 3, shipX: 50,
+                    bullets: [], enemies: [], spawnTimer: 0, buffs: [], 
+                    shuffledVocab: vocab.sort(() => Math.random() - 0.5), currentPair: null
+                };
+            } else {
+                if (type === 'Word Match') appState.activeGame.state = { selected: null, matches: [] };
+                if (type === 'Speed Quiz') appState.activeGame.state = { currentQ: 0, feedback: null };
+                if (type === 'Pic-a-Word') appState.activeGame.state = { feedback: null };
+                if (type === 'Sentence Scramble') appState.activeGame.state = { sentence: ["I", "love", "learning", "languages"], pool: ["languages", "love", "I", "learning"].sort(() => Math.random() - 0.5), answer: [], status: 'playing' };
+            }
+            navigate('game');
+        };
+
+        window.restartSpaceInvaders = () => {
+            const overlay = document.getElementById('gameOverOverlay');
+            if(overlay) overlay.classList.add('hidden');
+            overlay.classList.remove('flex');
+            startGameInvaders(appState.activeGame.state.difficulty);
+        };
+
+        const startGameInvaders = (difficulty) => {
+            const state = appState.activeGame.state;
+            state.difficulty = difficulty;
+            state.gameStarted = true; state.isRunning = true; state.lives = 3; appState.activeGame.score = 0; state.gameOver = false;
+            state.bullets = []; state.enemies = [];
+            if (!state.shuffledVocab || state.shuffledVocab.length === 0) state.shuffledVocab = [...gameData['Korean']];
+            state.currentPair = state.shuffledVocab[Math.floor(Math.random() * state.shuffledVocab.length)];
+            render(); 
+            requestAnimationFrame(initSpaceInvadersCanvas);
+        }
+
+        const initSpaceInvadersCanvas = () => {
+            const canvas = document.getElementById('invaderCanvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const game = appState.activeGame;
+            const state = game.state;
+
+            const resize = () => { if(canvas.parentElement) { canvas.width = canvas.parentElement.clientWidth; canvas.height = canvas.parentElement.clientHeight; } };
+            window.addEventListener('resize', resize); resize();
+
+            const keys = {};
+            window.addEventListener('keydown', (e) => keys[e.code] = true);
+            window.addEventListener('keyup', (e) => keys[e.code] = false);
+            state.cleanup = () => { window.removeEventListener('resize', resize); };
+            
+            window.moveShipLeft = () => { state.shipX = Math.max(5, state.shipX - 5); };
+            window.moveShipRight = () => { state.shipX = Math.min(95, state.shipX + 5); };
+            window.fireBullet = () => { state.bullets.push({ x: state.shipX, y: canvas.height - 50 }); };
+
+            const loop = () => {
+                if (appState.currentPage !== 'game') return;
+                if (state.gameOver) {
+                    const overlay = document.getElementById('gameOverOverlay');
+                    if(overlay) { overlay.classList.remove('hidden'); overlay.classList.add('flex'); document.getElementById('finalScore').innerText = game.score; }
+                    return; 
+                }
+                if (!state.isRunning) return;
+
+                let spawnRate = 100; let enemySpeed = 1.0;
+                if (state.difficulty === 'Fast') { spawnRate = 60; enemySpeed = 2.0; }
+                if (state.difficulty === 'Blitz') { spawnRate = 30; enemySpeed = 3.5; }
+                if (state.buffs.includes('freeze')) enemySpeed = 0;
+
+                if (keys['ArrowLeft'] || keys['KeyA']) state.shipX = Math.max(3, state.shipX - 0.7);
+                if (keys['ArrowRight'] || keys['KeyD']) state.shipX = Math.min(97, state.shipX + 0.7);
+                if (keys['Space'] || keys['KeyW']) {
+                    if (!state.lastFire || Date.now() - state.lastFire > 400) { state.bullets.push({ x: state.shipX, y: canvas.height - 50 }); state.lastFire = Date.now(); }
+                }
+
+                state.spawnTimer++;
+                if (state.spawnTimer > spawnRate) {
+                    state.spawnTimer = 0;
+                    if (Math.random() < 0.15) {
+                        const seed = Math.random();
+                        let type = 'shield'; let text = '🛡️';
+                        if (seed > 0.33) { type = 'freeze'; text = '❄️'; }
+                        if (seed > 0.66) { type = 'trap'; text = '💀'; } 
+                        state.enemies.push({ x: Math.random() * (canvas.width - 40) + 20, y: -30, type: type, text: text, w: 30, h: 30 });
+                    } else {
+                        const randomWord = game.data[Math.floor(Math.random() * game.data.length)];
+                        state.enemies.push({ x: Math.random() * (canvas.width - 80) + 40, y: -30, type: 'word', text: randomWord.a, isTarget: randomWord.a === state.currentPair?.a, w: ctx.measureText(randomWord.a).width + 20, h: 20 });
+                    }
+                }
+
+                ctx.fillStyle = '#000000'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#ffffff'; for(let i=0; i<15; i++) { ctx.fillRect((Math.sin(i*132)*canvas.width + canvas.width)%canvas.width, (Math.cos(i*43)*canvas.height + canvas.height)%canvas.height, 1, 1); }
+
+                const shipPx = (state.shipX / 100) * canvas.width; const shipY = canvas.height - 40;
+                ctx.save(); ctx.translate(shipPx, shipY);
+                if (state.buffs.includes('shield')) { ctx.beginPath(); ctx.arc(0, 0, 40, 0, Math.PI * 2); ctx.strokeStyle = '#60a5fa'; ctx.lineWidth = 2; ctx.stroke(); }
+                ctx.fillStyle = '#39ff14'; ctx.fillRect(-15, 10, 30, 10); ctx.fillRect(-5, 0, 10, 10); ctx.fillRect(-2, -5, 4, 5); ctx.restore();
+
+                if (state.currentPair) { ctx.fillStyle = '#fff'; ctx.font = '12px "Press Start 2P", monospace'; ctx.textAlign = 'center'; ctx.fillText(`TARGET: ${state.currentPair.q.toUpperCase()}`, canvas.width/2, 30); }
+
+                ctx.fillStyle = '#39ff14';
+                for (let i = state.bullets.length - 1; i >= 0; i--) {
+                    let b = state.bullets[i]; b.y -= 8; ctx.fillRect((b.x / 100) * canvas.width - 2, b.y, 4, 10);
+                    for (let j = state.enemies.length - 1; j >= 0; j--) {
+                        let e = state.enemies[j];
+                        if (b.y < e.y + 20 && b.y > e.y && (b.x / 100) * canvas.width > e.x - 20 && (b.x / 100) * canvas.width < e.x + 20) {
+                            state.bullets.splice(i, 1);
+                            if (e.type === 'word') {
+                                if (e.isTarget) {
+                                    game.score += 50; state.enemies.splice(j, 1);
+                                    const remaining = state.shuffledVocab; state.currentPair = remaining[Math.floor(Math.random() * remaining.length)];
+                                } else {
+                                    game.score = Math.max(0, game.score - 10); state.enemies.splice(j, 1); 
+                                    if (!state.buffs.includes('shield')) { state.lives -= 1; }
+                                }
+                            } else {
+                                if(e.type==='shield') { state.buffs.push('shield'); setTimeout(()=>state.buffs=state.buffs.filter(b=>b!=='shield'),5000); }
+                                if(e.type==='freeze') { state.buffs.push('freeze'); setTimeout(()=>state.buffs=state.buffs.filter(b=>b!=='freeze'),3000); }
+                                if(e.type==='trap') { state.lives-=1; }
+                                state.enemies.splice(j, 1);
+                            }
+                            break;
+                        }
+                    }
+                    if (b.y < 0) state.bullets.splice(i, 1);
+                }
+
+                ctx.font = '10px "Press Start 2P", monospace';
+                for (let i = state.enemies.length - 1; i >= 0; i--) {
+                    let e = state.enemies[i]; e.y += enemySpeed;
+                    if (e.type === 'word') { ctx.fillStyle = '#fff'; ctx.fillText(e.text, e.x, e.y); } 
+                    else { ctx.font = '20px Arial'; ctx.fillText(e.text, e.x, e.y); ctx.font = '10px "Press Start 2P", monospace'; }
+
+                    if (Math.abs(e.y - shipY) < 20 && Math.abs(e.x - shipPx) < 20) {
+                        state.enemies.splice(i, 1);
+                        if (e.type === 'word' || e.type === 'trap') {
+                             if (!state.buffs.includes('shield')) { state.lives -= 1; }
+                        } else {
+                             if(e.type==='shield') { state.buffs.push('shield'); setTimeout(()=>state.buffs=state.buffs.filter(b=>b!=='shield'),5000); }
+                             if(e.type==='freeze') { state.buffs.push('freeze'); setTimeout(()=>state.buffs=state.buffs.filter(b=>b!=='freeze'),3000); }
+                        }
+                    } else if (e.y > canvas.height + 20) {
+                        state.enemies.splice(i, 1);
+                    }
+                }
+                if (state.lives <= 0) state.gameOver = true;
+                ctx.fillStyle = '#39ff14'; ctx.fillRect(0, canvas.height - 2, canvas.width, 2);
+                ctx.fillStyle = '#fff'; ctx.font = '12px "Press Start 2P", monospace';
+                ctx.textAlign = 'right'; ctx.fillText(`LIVES: ${state.lives}`, canvas.width - 20, canvas.height - 10);
+                ctx.textAlign = 'left'; ctx.fillText(`SCORE: ${game.score}`, 20, canvas.height - 10);
+                requestAnimationFrame(loop);
+            };
+            loop();
+        }
+
+        const handleGameInteraction = (action, payload) => {
+            const game = appState.activeGame;
+            const state = game.state;
+            if (game.type === 'Word Match') {
+                if (state.matches.includes(payload.val)) return;
+                if (!state.selected) { state.selected = payload; } 
+                else {
+                    const pair = game.data.find(p => (p.q === state.selected.val && p.a === payload.val) || (p.a === state.selected.val && p.q === payload.val));
+                    if (pair) { game.score += 10; state.matches.push(pair.q, pair.a); state.selected = null; } 
+                    else { state.selected = null; }
+                }
+            } else if (game.type === 'Speed Quiz') {
+                const q = game.data[state.currentQ % game.data.length];
+                state.feedback = (payload === q.a) ? 'correct' : 'wrong';
+                if (payload === q.a) game.score += 10;
+                setTimeout(() => { state.currentQ++; state.feedback = null; render(); }, 500);
+            } else if (game.type === 'Sentence Scramble') {
+                if (action === 'add') state.answer.push(state.pool.splice(payload, 1)[0]);
+                else if (action === 'remove') state.pool.push(state.answer.splice(payload, 1)[0]);
+                if (state.pool.length === 0 && JSON.stringify(state.answer) === JSON.stringify(state.sentence)) { state.status = 'won'; game.score += 50; }
+            } else if (game.type === 'Pic-a-Word') {
+                 const correctWords = ['Sagwa', 'Manzana', 'Ringo', 'Mela'];
+                 state.feedback = correctWords.some(w => payload.includes(w)) ? 'correct' : 'wrong';
+                 if (state.feedback === 'correct') game.score += 10;
+                 setTimeout(() => { state.feedback = null; render(); }, 800);
+            }
+            render();
+        };
+
+        // --- RENDER ---
+        const renderHeader = () => {
+            const getActiveClasses = (page) => appState.currentPage === page ? 'border-b-4 border-accent text-on-maroon font-semibold' : 'text-gray-300 hover:text-on-maroon';
+            return `
+                <header class="bg-primary shadow-md sticky top-0 z-10">
+                    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex justify-between items-center">
+                        <div class="flex items-center space-x-2 cursor-pointer" onclick="navigate('home')">
+                            <span class="text-xl font-extrabold text-on-maroon font-press-start">Fluentia</span>
+                        </div>
+                        <nav class="hidden md:flex space-x-8">
+                            <button onclick="navigate('home')" class="py-2 ${getActiveClasses('home')}">Home</button>
+                            <button onclick="navigate('courses')" class="py-2 ${getActiveClasses('courses')}">Courses</button>
+                            <button onclick="navigate('dashboard')" class="py-2 ${getActiveClasses('dashboard')}">Progress</button>
+                        </nav>
+                        <div class="flex items-center space-x-3">
+                            <span class="text-sm font-medium text-gray-200 hidden sm:inline">🔥 ${appState.user.streak}</span>
+                            <div class="w-8 h-8 bg-white rounded-full text-primary flex items-center justify-center font-bold border-2 border-accent">${appState.user.name.charAt(0)}</div>
+                        </div>
+                    </div>
+                </header>
+            `;
+        };
+
+        const renderHomePage = () => `
+            <div class="max-w-4xl mx-auto p-8 pt-12 text-center bg-primary rounded-xl shadow-xl mt-8 animate-pop">
+                <h1 class="text-5xl font-extrabold text-on-maroon mb-4 leading-tight">Learn Languages. <span class="text-accent">Level up your world.</span></h1>
+                <p class="text-xl text-gray-200 mb-8">Video-based lessons, real-time pronunciation practice, and our new <b>Gamery Mode</b>.</p>
+                <button onclick="navigate('courses')" class="bg-accent text-on-light text-lg font-bold py-3 px-8 rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition duration-300">Start Learning Now</button>
+                <div class="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <!-- Card 1: Video Lessons -->
+                    <div class="group bg-accent p-0 rounded-xl shadow-lg border-t-4 border-on-maroon text-on-light overflow-hidden h-48 relative transition hover:scale-105">
+                        <!-- Static View -->
+                        <div class="group-hover:hidden absolute inset-0 flex flex-col items-center justify-center p-6">
+                            <div class="text-3xl text-on-maroon mb-3">📹</div>
+                            <h3 class="font-bold text-lg mb-2">Video Lessons</h3>
+                            <p class="text-gray-700 text-sm">Interactive content.</p>
+                        </div>
+                        <!-- Hover View (Animated Scene) -->
+                        <div class="hidden group-hover:flex absolute inset-0 bg-gray-800 items-center justify-center flex-col">
+                            <svg width="150" height="100" viewBox="0 0 150 100">
+                                <!-- Board -->
+                                <rect x="40" y="10" width="100" height="60" fill="#2d3748" stroke="#4a5568" stroke-width="2"/>
+                                <!-- Text on board -->
+                                <line x1="50" y1="25" x2="130" y2="25" stroke="white" stroke-width="2" stroke-dasharray="5,5">
+                                    <animate attributeName="x2" from="50" to="130" dur="1s" repeatCount="indefinite" />
+                                </line>
+                                <!-- Teacher -->
+                                <circle cx="20" cy="30" r="10" fill="#ecc94b">
+                                    <animate attributeName="cx" values="20;25;20" dur="2s" repeatCount="indefinite" />
+                                </circle>
+                                <rect x="10" y="40" width="20" height="40" fill="white">
+                                    <animate attributeName="x" values="10;15;10" dur="2s" repeatCount="indefinite" />
+                                </rect>
+                                <!-- Stick -->
+                                <line x1="20" y1="50" x2="50" y2="30" stroke="white" stroke-width="2">
+                                    <animate attributeName="x2" values="50;100;50" dur="2s" repeatCount="indefinite" />
+                                    <animate attributeName="y2" values="30;20;30" dur="2s" repeatCount="indefinite" />
+                                    <animate attributeName="x1" values="20;25;20" dur="2s" repeatCount="indefinite" />
+                                </line>
+                            </svg>
+                            <p class="text-white text-xs mt-2 font-mono">Playing Lesson...</p>
+                        </div>
+                    </div>
+
+                    <!-- Card 2: Speech Practice -->
+                    <div class="group bg-light-bg p-0 rounded-xl shadow-lg border-t-4 border-primary text-on-light overflow-hidden h-48 relative transition hover:scale-105">
+                        <!-- Static -->
+                        <div class="group-hover:hidden absolute inset-0 flex flex-col items-center justify-center p-6">
+                            <div class="text-3xl text-primary mb-3">🎤</div>
+                            <h3 class="font-bold text-lg mb-2">Speech Practice</h3>
+                            <p class="text-gray-700 text-sm">Pronunciation check.</p>
+                        </div>
+                        <!-- Hover (Animated Scene) -->
+                        <div class="hidden group-hover:flex absolute inset-0 bg-gray-900 items-center justify-center flex-col">
+                            <svg width="100" height="100" viewBox="0 0 100 100">
+                                <!-- Face Profile -->
+                                <path d="M30 20 Q10 20 10 50 Q10 80 30 80 L30 90 L50 90 L50 80 Q70 80 70 50 Q70 20 50 20 Z" fill="#63b3ed" />
+                                <circle cx="45" cy="40" r="3" fill="white" /> <!-- Eye -->
+                                <path d="M50 60 Q60 60 60 50" stroke="white" fill="none" stroke-width="2"/> <!-- Mouth -->
+                                
+                                <!-- Sound Waves -->
+                                <path d="M75 40 Q85 50 75 60" stroke="#39ff14" stroke-width="3" fill="none" opacity="0">
+                                    <animate attributeName="opacity" values="0;1;0" dur="1s" repeatCount="indefinite" />
+                                    <animate attributeName="d" values="M75 40 Q85 50 75 60; M80 35 Q95 50 80 65" dur="1s" repeatCount="indefinite" />
+                                </path>
+                                <path d="M85 30 Q100 50 85 70" stroke="#39ff14" stroke-width="3" fill="none" opacity="0">
+                                    <animate attributeName="opacity" values="0;1;0" dur="1s" begin="0.3s" repeatCount="indefinite" />
+                                </path>
+                            </svg>
+                            <p class="text-[#39ff14] text-xs mt-2 font-mono">Recording...</p>
+                        </div>
+                    </div>
+
+                    <!-- Card 3: Game Mode -->
+                    <div class="group bg-gray-700 p-0 rounded-xl shadow-lg border-t-4 border-accent text-on-maroon overflow-hidden h-48 relative transition hover:scale-105">
+                        <!-- Static -->
+                        <div class="group-hover:hidden absolute inset-0 flex flex-col items-center justify-center p-6">
+                            <div class="text-3xl text-accent mb-3">👾</div>
+                            <h3 class="font-bold text-lg mb-2">Game Mode</h3>
+                            <p class="text-gray-300 text-sm">Learn with Arcade Games.</p>
+                        </div>
+                        <!-- Hover (Animated Scene) -->
+                        <div class="hidden group-hover:flex absolute inset-0 bg-black items-center justify-center flex-col">
+                             <svg width="150" height="80" viewBox="0 0 150 80">
+                                <!-- Ship -->
+                                <rect x="70" y="70" width="10" height="5" fill="#39ff14">
+                                    <animate attributeName="x" values="20;120;20" dur="3s" repeatCount="indefinite" />
+                                </rect>
+                                <rect x="73" y="65" width="4" height="5" fill="#39ff14">
+                                    <animate attributeName="x" values="23;123;23" dur="3s" repeatCount="indefinite" />
+                                </rect>
+                                <!-- Bullet -->
+                                <rect x="74" y="60" width="2" height="5" fill="red">
+                                     <animate attributeName="y" values="60;0" dur="0.5s" repeatCount="indefinite" />
+                                     <animate attributeName="x" values="24;124;24" dur="3s" repeatCount="indefinite" />
+                                </rect>
+                                <!-- Invader -->
+                                <g transform="translate(0,0)">
+                                    <rect x="0" y="0" width="10" height="8" fill="white" />
+                                    <animateTransform attributeName="transform" type="translate" values="20 10; 120 10; 20 10" dur="3s" repeatCount="indefinite" />
+                                    <animate attributeName="opacity" values="1;0;1" dur="0.5s" repeatCount="indefinite" />
+                                </g>
+                             </svg>
+                             <p class="text-accent text-xs mt-2 font-press-start">INSERT COIN</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        const renderCoursesPage = () => {
+            const groupedCourses = appState.courses.reduce((acc, course) => {
+                if (!acc[course.name]) acc[course.name] = [];
+                acc[course.name].push(course);
+                return acc;
+            }, {});
+            const languageCards = Object.entries(groupedCourses).map(([languageName, courses]) => {
+                const isGamery = appState.gameryModes[languageName];
+                const selectedLevel = getSelectedLevel(languageName);
+                const isOpen = appState.activeDropdown === languageName;
+                const selectedCourse = courses.find(c => c.level === selectedLevel) || courses[0];
+                const isLocked = ['Advanced', 'Expert'].includes(selectedCourse.difficulty) && !appState.isPremium;
+
+                const dropdownItems = courses.map(c => {
+                    const locked = ['Advanced', 'Expert'].includes(c.difficulty) && !appState.isPremium;
+                    const lockIcon = locked ? ' 🔒' : '';
+                    const activeClass = c.level === selectedLevel ? 'bg-light-bg font-bold' : '';
+                    const textClass = locked ? 'text-gray-400' : 'text-gray-800';
+                    return `<li onclick="selectLevel('${languageName}', '${c.level}')" class="px-4 py-3 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-0 ${activeClass} ${textClass}">${c.level}${lockIcon}</li>`;
+                }).join('');
+
+                const headerClass = isGamery ? 'bg-gray-900 text-white' : courses[0].color;
+                const textClass = isGamery ? 'text-accent' : (courses[0].color.includes('text-on-maroon') ? 'text-on-maroon' : 'text-on-light');
+                
+                const defaultContent = `
+                    <div class="p-6 flex flex-col flex-grow justify-between animate-pop relative">
+                        <div>
+                            <p class="text-xs font-bold text-gray-500 mb-2 uppercase tracking-wide">Select Level</p>
+                            <div class="relative mb-6">
+                                <button onclick="toggleDropdown('${languageName}')" class="w-full bg-white border-2 border-gray-200 rounded-lg px-4 py-3 flex justify-between items-center shadow-sm hover:border-primary transition">
+                                    <span class="font-medium text-gray-800">${selectedLevel}</span><svg class="w-4 h-4 text-gray-500 transform ${isOpen ? 'rotate-180' : ''} transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" stroke-width="2"></path></svg>
+                                </button>
+                                <ul class="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-50 ${isOpen ? 'block' : 'hidden'} max-h-60 overflow-y-auto">${dropdownItems}</ul>
+                            </div>
+                            <div class="bg-gray-50 p-4 rounded-lg mb-4 min-h-[80px] flex items-center justify-center text-center border border-gray-100">
+                                <p class="text-sm text-gray-600 italic">"${selectedCourse.tagline}"</p>
+                            </div>
+                        </div>
+                        <button onclick="startSelectedLesson('${languageName}')" class="w-full py-3 rounded-lg font-bold shadow-md transition flex items-center justify-center gap-2 ${isLocked ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-primary text-on-maroon hover:bg-opacity-90'}">
+                            ${isLocked ? 'Premium Required' : 'Start Learning'} ${isLocked ? '<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"></path></svg>' : ''}
+                        </button>
+                    </div>
+                `;
+                const games = [{name:"Word Match",icon:"🧩",type:"Word Match"},{name:"Speed Quiz",icon:"⚡",type:"Speed Quiz"},{name:"Invaders",icon:"👾",type:"Word Invaders"},{name:"Scramble",icon:"📝",type:"Sentence Scramble"},{name:"Pic-a-Word",icon:"🍎",type:"Pic-a-Word"}];
+                const gameryContent = `
+                    <div class="p-4 flex flex-col flex-grow animate-pop bg-gray-900 rounded-b-xl">
+                        <p class="text-gray-400 text-xs text-center mb-3 uppercase tracking-widest">Arcade Mode</p>
+                        <div class="grid grid-cols-2 gap-2 mb-2">
+                            ${games.map(g => `<button onclick="launchGame('${languageName}', '${g.type}')" class="bg-gray-800 hover:bg-accent hover:text-black text-white p-2 rounded-lg text-sm transition flex flex-col items-center justify-center h-20 border border-gray-700"><span class="text-2xl mb-1">${g.icon}</span><span class="font-bold text-xs">${g.name}</span></button>`).join('')}
+                        </div>
+                    </div>
+                `;
+                return `
+                    <div class="bg-white rounded-xl shadow-lg border-t-4 border-primary flex flex-col h-full transform transition hover:scale-[1.01] relative"> 
+                        <div class="${headerClass} p-4 flex justify-between items-center transition-colors duration-500 rounded-t-xl">
+                            <div><h3 class="text-2xl font-extrabold ${textClass}">${languageName}</h3></div>
+                            <button onclick="toggleGameryMode('${languageName}')" class="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border-2 transition-all shadow-md ${isGamery ? 'bg-accent text-black border-transparent hover:bg-white' : 'bg-white text-primary border-white hover:bg-accent'}">${isGamery ? 'Default' : 'Gamery'}</button>
+                        </div>
+                        ${isGamery ? gameryContent : defaultContent}
+                    </div>
+                `;
+            }).join('');
+
+            return `<div class="max-w-7xl mx-auto p-8" onclick="if(!event.target.closest('button')) { appState.activeDropdown = null; render(); }">
+                        <h2 class="text-3xl font-bold text-primary mb-8 border-b pb-3 border-accent">📚 Language Hub</h2>
+                        <p class="text-gray-600 mb-8">Select your level to begin. Unlock advanced tiers with Premium.</p>
+                        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-12">${languageCards}</div>
+                        
+                        <div class="w-full bg-primary text-white p-8 rounded-2xl shadow-2xl flex flex-col md:flex-row justify-between items-center border-4 border-accent">
+                            <div class="mb-6 md:mb-0">
+                                <h3 class="text-2xl font-bold mb-2">🚀 Upgrade to Premium</h3>
+                                <p class="text-white/80">Unlock Expert levels, unlimited hearts in Games, and ad-free learning.</p>
+                            </div>
+                            <button onclick="navigate('plans')" class="bg-accent text-black font-bold py-3 px-8 rounded-full shadow-lg hover:scale-105 transition">View Plans</button>
+                        </div>
+                    </div>`;
+        };
+
+        const renderPremiumPlansPage = () => `
+            <div class="max-w-4xl mx-auto p-8 pt-12 animate-pop">
+                <button onclick="navigate('courses')" class="mb-6 flex items-center text-primary font-bold hover:underline">← Back to Courses</button>
+                <h2 class="text-4xl font-extrabold text-center text-primary mb-12">Choose Your Plan</h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <!-- Free Plan -->
+                    <div class="bg-white p-8 rounded-2xl shadow-lg border-2 border-gray-200 flex flex-col">
+                        <h3 class="text-2xl font-bold text-gray-800">Free Starter</h3>
+                        <p class="text-4xl font-extrabold text-gray-900 mt-4">₱0<span class="text-lg font-normal text-gray-500">/mo</span></p>
+                        <ul class="mt-8 space-y-4 flex-grow">
+                            <li class="flex items-center text-gray-600">✅ Beginner & Intermediate Courses</li>
+                            <li class="flex items-center text-gray-600">✅ Daily Gamery access (Limited)</li>
+                            <li class="flex items-center text-gray-600">✅ Community Support</li>
+                        </ul>
+                        <button class="mt-8 w-full py-3 rounded-xl font-bold border-2 border-gray-300 text-gray-600 cursor-not-allowed">Current Plan</button>
+                    </div>
+
+                    <!-- Premium Plan -->
+                    <div class="bg-primary p-8 rounded-2xl shadow-2xl border-4 border-accent flex flex-col relative overflow-hidden">
+                        <div class="absolute top-0 right-0 bg-accent text-black text-xs font-bold px-3 py-1 rounded-bl-lg">RECOMMENDED</div>
+                        <h3 class="text-2xl font-bold text-white">Fluentia Premium</h3>
+                        <p class="text-4xl font-extrabold text-white mt-4">₱299<span class="text-lg font-normal text-white/70">/mo</span></p>
+                        <ul class="mt-8 space-y-4 flex-grow">
+                            <li class="flex items-center text-white">✨ All Levels (Advanced & Expert)</li>
+                            <li class="flex items-center text-white">✨ Unlimited Hearts in Invaders</li>
+                            <li class="flex items-center text-white">✨ Offline Mode</li>
+                            <li class="flex items-center text-white">✨ Priority Tutor Chat</li>
+                        </ul>
+                        <button onclick="upgradeToPremium()" class="mt-8 w-full py-3 rounded-xl font-bold bg-accent text-black hover:bg-white hover:text-primary transition shadow-lg">Upgrade Now</button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        const renderGamePage = () => {
+            const game = appState.activeGame;
+            const state = game.state;
+            
+            if (game.type === 'Word Invaders') {
+                if (!state.gameStarted) {
+                     return `
+                        <div class="bg-gray-900 min-h-full flex flex-col items-center justify-center text-white p-8 font-press-start">
+                            <h2 class="text-3xl font-extrabold text-accent mb-8 text-center" style="font-family: 'Press Start 2P'">👾 Word Invaders</h2>
+                            <div class="bg-gray-800 p-8 rounded-xl shadow-2xl border-4 border-accent max-w-md w-full text-center">
+                                <p class="mb-6 text-white font-bold">Protect the Base!</p>
+                                <div class="space-y-4">
+                                    <button onclick="startGameInvaders('Normal')" class="w-full py-3 bg-green-600 rounded text-white font-bold hover:bg-green-500 border-2 border-green-400">NORMAL</button>
+                                    <button onclick="startGameInvaders('Fast')" class="w-full py-3 bg-yellow-600 rounded text-white font-bold hover:bg-yellow-500 border-2 border-yellow-400">FAST</button>
+                                    <button onclick="startGameInvaders('Blitz')" class="w-full py-3 bg-red-600 rounded text-white font-bold hover:bg-red-500 border-2 border-red-400">BLITZ</button>
+                                </div>
+                                <button onclick="navigate('courses')" class="mt-6 text-gray-400 hover:text-white underline text-xs">EXIT</button>
+                            </div>
+                        </div>
+                    `;
+                }
+                return `
+                    <div class="bg-gray-900 min-h-full p-4 flex flex-col items-center justify-center relative">
+                        <div class="w-full max-w-3xl flex justify-between items-center mb-4 text-white">
+                             <button onclick="navigate('courses')" class="bg-gray-700 px-4 py-2 rounded hover:bg-gray-600 text-xs font-press-start">EXIT</button>
+                        </div>
+                        <div class="relative w-full max-w-3xl h-[600px] bg-black rounded-sm border-4 border-gray-700 overflow-hidden shadow-2xl">
+                            <canvas id="invaderCanvas" class="w-full h-full"></canvas>
+                            <div id="gameOverOverlay" class="absolute inset-0 bg-black/80 hidden flex-col items-center justify-center z-20">
+                                <h2 class="text-red-500 text-4xl font-press-start mb-4">GAME OVER</h2>
+                                <p class="text-white text-xl font-press-start mb-8">SCORE: <span id="finalScore">0</span></p>
+                                <button onclick="restartSpaceInvaders()" class="px-6 py-3 bg-green-600 hover:bg-green-500 text-white font-bold font-press-start rounded border-4 border-green-800">TRY AGAIN</button>
+                                <button onclick="navigate('courses')" class="mt-4 text-gray-400 hover:text-white font-press-start text-xs">EXIT</button>
+                            </div>
+                             <div class="absolute bottom-16 left-4 flex gap-4 pointer-events-none">
+                                <button onmousedown="moveShipLeft()" ontouchstart="moveShipLeft()" class="pointer-events-auto w-16 h-16 bg-white/10 rounded-full text-white text-2xl flex items-center justify-center border-2 border-white/30">←</button>
+                                <button onmousedown="moveShipRight()" ontouchstart="moveShipRight()" class="pointer-events-auto w-16 h-16 bg-white/10 rounded-full text-white text-2xl flex items-center justify-center border-2 border-white/30">→</button>
+                            </div>
+                             <div class="absolute bottom-16 right-4 pointer-events-none">
+                                <button onmousedown="fireBullet()" ontouchstart="fireBullet()" class="pointer-events-auto w-20 h-20 bg-red-600/80 rounded-full text-white font-bold text-xs flex items-center justify-center border-4 border-red-400">FIRE</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            let content = '';
+            if (game.type === 'Word Match') {
+               const items = []; game.data.forEach(d => { if(!state.matches.includes(d.q)) items.push({val:d.q, type:'q'}); if(!state.matches.includes(d.a)) items.push({val:d.a, type:'a'}); }); items.sort(() => Math.random() - 0.5);
+               content = items.length===0 ? `<div class="text-white text-3xl font-bold">All Matched!</div>` : `<div class="grid grid-cols-2 gap-4 max-w-md mx-auto">${items.map(item => `<button onclick="handleGameInteraction('match', {val:'${item.val}', type:'${item.type}'})" class="p-4 rounded-lg shadow font-bold text-gray-800 ${state.selected?.val===item.val?'bg-accent':'bg-white'}">${item.val}</button>`).join('')}</div>`;
+            } else if (game.type === 'Speed Quiz') {
+               const q = game.data[state.currentQ % game.data.length];
+               const options = game.data.map(d => d.a).sort(() => Math.random() - 0.5).slice(0, 4); if(!options.includes(q.a)) options[0]=q.a; options.sort(() => Math.random() - 0.5);
+               content = `<div class="text-center max-w-lg mx-auto p-8 rounded-xl shadow-xl bg-white"><h3 class="text-4xl font-bold text-gray-800 mb-8">${q.q}</h3><div class="grid grid-cols-2 gap-4">${options.map(opt => `<button onclick="handleGameInteraction('quiz', '${opt}')" class="bg-gray-100 p-4 rounded-lg hover:bg-accent font-bold text-lg text-gray-800">${opt}</button>`).join('')}</div></div>`;
+            } else if (game.type === 'Sentence Scramble') {
+               content = state.status === 'won' ? `<div class="text-white text-3xl text-center">Correct!</div>` : `<div class="bg-white p-8 rounded-xl shadow-lg max-w-xl mx-auto text-center"><p class="mb-4 text-gray-500">Form: "I love learning languages"</p><div class="flex justify-center gap-2 mb-8 min-h-[60px] border-b border-gray-300 pb-4">${state.answer.map((w,i)=>`<button onclick="handleGameInteraction('remove', ${i})" class="bg-primary text-white px-4 py-2 rounded-full font-bold">${w}</button>`).join('')}</div><div class="flex justify-center gap-2">${state.pool.map((w,i)=>`<button onclick="handleGameInteraction('add', ${i})" class="bg-accent text-black px-4 py-2 rounded-full font-bold">${w}</button>`).join('')}</div></div>`;
+            } else if (game.type === 'Pic-a-Word') {
+               content = `<div class="text-center max-w-md mx-auto p-4 rounded-xl ${state.feedback==='correct'?'bg-green-500':state.feedback==='wrong'?'bg-red-500':'bg-transparent'}"><div class="text-9xl mb-8 animate-bounce">🍎</div><div class="grid grid-cols-1 gap-3">${['Sagwa', 'Manzana', 'Mela'].map(opt => `<button onclick="handleGameInteraction('pic', '${opt}')" class="bg-white py-3 rounded-lg font-bold text-gray-800">${opt}</button>`).join('')}</div></div>`;
+            }
+            return `<div class="bg-gray-800 min-h-full p-8 flex flex-col"><div class="flex justify-between items-center mb-8 text-white"><button onclick="navigate('courses')" class="text-gray-400 hover:text-white">Exit Game</button><h2 class="text-3xl font-bold text-accent">${game.type}</h2><div class="bg-gray-700 px-4 py-2 rounded-lg">Score: ${game.score}</div></div><div class="flex-grow flex items-center justify-center w-full">${content}</div></div>`;
+        }
+
+        const render = () => {
+            const app = document.getElementById('app');
+            if (appState.currentPage === 'game') { app.innerHTML = renderGamePage(); if (appState.activeGame.type === 'Word Invaders' && appState.activeGame.state.gameStarted && !appState.activeGame.state.isRunning) { requestAnimationFrame(initSpaceInvadersCanvas); } return; }
+            app.innerHTML = renderHeader();
+            let contentHTML = '';
+            switch (appState.currentPage) {
+                case 'home': contentHTML = renderHomePage(); break;
+                case 'courses': contentHTML = renderCoursesPage(); break;
+                case 'plans': contentHTML = renderPremiumPlansPage(); break;
+                case 'lesson': contentHTML = renderLessonPage(); break;
+                default: contentHTML = renderHomePage();
+            }
+            app.innerHTML += `<main class="flex-grow p-4 md:p-8 scroll-y-auto bg-gray-50">${contentHTML}</main>`;
+        };
+        document.addEventListener('DOMContentLoaded', () => { loadData(); render(); });
+    </script>
+</body>
+</html>
